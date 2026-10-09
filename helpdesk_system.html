@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HelpDesk | Kelola Laporan, Selesaikan Masalah</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter','sans-serif'] },
+      colors: {
+        navy: '#172554',
+        brand: '#2563EB',
+        mist: '#F1F5F9',
+      },
+      boxShadow: {
+        app: '0 20px 60px -15px rgba(23,37,84,.22)',
+        card: '0 1px 2px rgba(23,37,84,.06), 0 1px 3px rgba(23,37,84,.08)',
+        pop: '0 16px 40px -10px rgba(23,37,84,.3)'
+      }
+    }
+  }
+}
+</script>
+<style>
+  body{background:#F1F5F9;color:#172554;-webkit-font-smoothing:antialiased}
+  .custom-scrollbar::-webkit-scrollbar{width:6px;height:6px}
+  .custom-scrollbar::-webkit-scrollbar-track{background:transparent}
+  .custom-scrollbar::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:99px}
+  .modal-overlay{opacity:0;visibility:hidden;transition:.22s}
+  .modal-overlay.active{opacity:1;visibility:visible}
+  .modal-panel{transform:translateY(10px) scale(.97);opacity:0;transition:.22s}
+  .modal-overlay.active .modal-panel{transform:none;opacity:1}
+  .custom-checkbox{appearance:none;width:16px;height:16px;border:1.5px solid #CBD5E1;border-radius:5px;background:#fff;cursor:pointer;position:relative;flex-shrink:0}
+  .custom-checkbox:checked{background:#2563EB;border-color:#2563EB}
+  .custom-checkbox:checked::after{content:'';position:absolute;left:4.5px;top:1.5px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  #detailsPanel{transition:width .3s cubic-bezier(.4,0,.2,1),opacity .2s}
+  #detailsPanel.collapsed{width:0!important;opacity:0;border:none!important;overflow:hidden;padding:0!important}
+  .timeline-line::before{content:'';position:absolute;top:30px;bottom:-6px;left:13px;width:2px;background:#E2E8F0}
+  .timeline-item:last-child .timeline-line::before{display:none}
+  .row-selected{background:#EFF6FF!important;box-shadow:inset 3px 0 0 #2563EB}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+  .pill i.dot{width:6px;height:6px;border-radius:99px;display:inline-block}
+  .page{display:none}.page.active{display:block;animation:fadeUp .25s ease both}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .bar-track{height:8px;border-radius:99px;background:#F1F5F9;overflow:hidden}
+  .bar-fill{height:100%;border-radius:99px;transition:width .5s ease}
+  .nav-main.active{background:#EFF6FF;color:#2563EB;font-weight:700}
+  .nav-main.active i{color:#2563EB}
+</style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center p-3 md:p-5 text-sm overflow-hidden">
+
+<div class="w-full max-w-[1480px] h-full max-h-[940px] bg-white rounded-[20px] shadow-app border border-white flex overflow-hidden">
+
+  <!-- RAIL -->
+  <nav class="w-[64px] flex-shrink-0 border-r border-slate-100 hidden sm:flex flex-col items-center py-4 gap-1 bg-white">
+    <div class="w-10 h-10 rounded-xl bg-navy flex items-center justify-center text-white font-extrabold text-xl mb-3">H</div>
+    <button onclick="showPage('dashboard')" title="Dashboard" class="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:bg-mist hover:text-navy transition"><i class="ph ph-house text-[22px]"></i></button>
+    <button onclick="showPage('all')" title="Semua Tiket" class="w-11 h-11 rounded-xl flex items-center justify-center bg-blue-50 text-brand transition"><i class="ph-fill ph-ticket text-[22px]"></i></button>
+    <button onclick="showPage('processing')" title="Dalam Proses" class="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:bg-mist transition"><i class="ph ph-spinner-gap text-[22px]"></i></button>
+    <button onclick="showPage('done')" title="Selesai" class="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:bg-mist transition"><i class="ph ph-check-circle text-[22px]"></i></button>
+    <button onclick="showPage('stats')" title="Statistik" class="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:bg-mist transition"><i class="ph ph-chart-bar text-[22px]"></i></button>
+    <div class="flex-1"></div>
+    <button onclick="showPage('settings')" class="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:bg-mist transition"><i class="ph ph-gear text-[22px]"></i></button>
+  </nav>
+
+  <!-- SIDEBAR -->
+  <aside class="w-[264px] flex-shrink-0 border-r border-slate-100 bg-white hidden md:flex flex-col">
+    <div class="px-5 pt-5 pb-4 border-b border-slate-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-brand flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-blue-500/30">H</div>
+        <div><p class="font-extrabold text-[16px] leading-none tracking-tight">HelpDesk</p><p class="text-[11px] text-slate-400 mt-1 italic">Kelola Laporan, Selesaikan Masalah.</p></div>
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-5">
+      <div>
+        <p class="px-2 mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">Menu Utama</p>
+        <ul class="space-y-1">
+          <li><button data-nav="dashboard" onclick="showPage('dashboard')" class="nav-main w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-slate-600 hover:bg-mist font-medium"><i class="ph ph-squares-four text-[18px] text-slate-400"></i>Dashboard</button></li>
+          <li><button data-nav="all" onclick="showPage('all')" class="nav-main w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] text-slate-600 hover:bg-mist font-medium"><span class="flex items-center gap-2.5"><i class="ph ph-ticket text-[18px] text-slate-400"></i>Semua Tiket</span><span id="countAll" class="text-[10px] font-bold bg-mist px-2 py-0.5 rounded-full">0</span></button></li>
+          <li><button onclick="openCreateModal()" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-slate-600 hover:bg-mist font-medium"><i class="ph ph-plus-circle text-[18px] text-brand"></i>Buat Laporan</button></li>
+          <li><button data-nav="processing" onclick="showPage('processing')" class="nav-main w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] text-slate-600 hover:bg-mist font-medium"><span class="flex items-center gap-2.5"><i class="ph ph-spinner-gap text-[18px] text-slate-400"></i>Dalam Proses</span><span id="countProcessing" class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">0</span></button></li>
+          <li><button data-nav="done" onclick="showPage('done')" class="nav-main w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] text-slate-600 hover:bg-mist font-medium"><span class="flex items-center gap-2.5"><i class="ph ph-check-circle text-[18px] text-slate-400"></i>Tiket Selesai</span><span id="countDone" class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">0</span></button></li>
+          <li><button data-nav="stats" onclick="showPage('stats')" class="nav-main w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-slate-600 hover:bg-mist font-medium"><i class="ph ph-chart-bar text-[18px] text-slate-400"></i>Statistik</button></li>
+          <li><button data-nav="settings" onclick="showPage('settings')" class="nav-main w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-slate-600 hover:bg-mist font-medium"><i class="ph ph-gear text-[18px] text-slate-400"></i>Pengaturan</button></li>
+        </ul>
+      </div>
+      <div>
+        <p class="px-2 mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">Status Laporan</p>
+        <ul id="navStatusList" class="space-y-1"></ul>
+      </div>
+      <div>
+        <p class="px-2 mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">Prioritas</p>
+        <ul id="navPriorityList" class="space-y-1"></ul>
+      </div>
+      <div>
+        <p class="px-2 mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">Kategori</p>
+        <ul id="navCategoryList" class="space-y-1"></ul>
+      </div>
+    </div>
+    <div class="p-3 border-t border-slate-100 flex items-center gap-3">
+      <img id="adminAvatar" src="https://ui-avatars.com/api/?name=Admin+Pusat&background=172554&color=fff" class="w-9 h-9 rounded-full" alt="admin">
+      <div class="flex-1 min-w-0"><p id="adminNameLabel" class="text-[13px] font-bold truncate">Admin Pusat</p><p class="text-[11px] text-slate-400">Administrator</p></div>
+      <button onclick="showPage('settings')" class="text-slate-400 hover:text-navy"><i class="ph ph-gear text-lg"></i></button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-1 min-w-0 flex flex-col bg-[#FBFCFE]">
+    <header class="h-[64px] px-5 border-b border-slate-100 flex items-center justify-between bg-white flex-shrink-0 gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <h1 id="mainTitle" class="font-extrabold text-[16px] tracking-tight whitespace-nowrap">Dashboard</h1>
+        <span id="mainSubtitle" class="text-[11px] font-bold bg-mist text-slate-600 px-2.5 py-1 rounded-full">0 Tiket</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="relative w-[200px] lg:w-[260px] hidden sm:block">
+          <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]"></i>
+          <input id="searchInput" placeholder="Cari ID, judul, pelapor, kategori..." class="w-full pl-9 pr-3 py-2 bg-mist border border-transparent rounded-[10px] text-[13px] focus:outline-none focus:bg-white focus:border-brand focus:ring-4 focus:ring-blue-500/10 transition">
+        </div>
+        <button onclick="openCreateModal()" class="px-4 py-2 bg-brand text-white rounded-[10px] text-[12px] font-bold hover:bg-blue-700 shadow-md shadow-blue-500/25 flex items-center gap-1.5 active:scale-95 transition"><i class="ph-bold ph-plus"></i><span class="hidden lg:inline">Buat Laporan</span><span class="lg:hidden">Baru</span></button>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-5">
+
+      <!-- DASHBOARD -->
+      <section id="page-dashboard" class="page active">
+        <div class="bg-navy text-white rounded-2xl p-6 relative overflow-hidden shadow-card mb-4">
+          <div class="absolute -right-10 -top-10 w-48 h-48 bg-brand/30 rounded-full blur-2xl"></div>
+          <div class="absolute right-20 bottom-0 w-32 h-32 bg-blue-400/20 rounded-full blur-xl"></div>
+          <p class="text-[11px] font-bold uppercase tracking-widest text-blue-300">HelpDesk • Admin Panel</p>
+          <h2 class="text-[22px] font-extrabold mt-1 tracking-tight">Kelola Laporan, Selesaikan Masalah.</h2>
+          <p class="text-[13px] text-slate-300 mt-1 max-w-[520px]">Pantau semua tiket masuk, tentukan prioritas, pantau proses penanganan, dan simpan riwayat penyelesaian dalam satu tempat.</p>
+          <div class="flex flex-wrap gap-2 mt-4">
+            <button onclick="openCreateModal()" class="px-4 py-2 bg-white text-navy rounded-xl text-[12px] font-bold hover:bg-blue-50 transition">+ Buat Laporan Baru</button>
+            <button onclick="showPage('all')" class="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-[12px] font-bold hover:bg-white/20 transition">Lihat Semua Tiket →</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-4">
+          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-card"><div class="w-10 h-10 rounded-xl bg-blue-50 text-brand flex items-center justify-center mb-2"><i class="ph-fill ph-ticket text-xl"></i></div><p id="dTotal" class="font-extrabold text-[22px] leading-none">0</p><p class="text-[11px] font-semibold text-slate-500 mt-1">Total Tiket</p></div>
+          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-card"><div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-2"><i class="ph-fill ph-sparkle text-xl"></i></div><p id="dBaru" class="font-extrabold text-[22px] leading-none">0</p><p class="text-[11px] font-semibold text-slate-500 mt-1">Tiket Baru</p></div>
+          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-card"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center mb-2"><i class="ph-fill ph-spinner-gap text-xl"></i></div><p id="dProses" class="font-extrabold text-[22px] leading-none">0</p><p class="text-[11px] font-semibold text-slate-500 mt-1">Sedang Diproses</p></div>
+          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-card"><div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2"><i class="ph-fill ph-check-circle text-xl"></i></div><p id="dSelesai" class="font-extrabold text-[22px] leading-none">0</p><p class="text-[11px] font-semibold text-slate-500 mt-1">Selesai</p></div>
+          <div class="bg-white border border-red-100 rounded-2xl p-4 shadow-card col-span-2 xl:col-span-1"><div class="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center mb-2"><i class="ph-fill ph-siren text-xl"></i></div><p id="dTinggi" class="font-extrabold text-[22px] leading-none">0</p><p class="text-[11px] font-semibold text-slate-500 mt-1">Prioritas Tinggi + Mendesak</p></div>
+        </div>
+        <div class="grid lg:grid-cols-2 gap-3">
+          <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-card">
+            <div class="flex items-center justify-between mb-3"><h3 class="font-extrabold text-[14px]">Tiket Terbaru</h3><button onclick="showPage('all')" class="text-[12px] font-bold text-brand hover:underline">Lihat semua</button></div>
+            <div id="recentList" class="flex flex-col gap-2"></div>
+          </div>
+          <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-card">
+            <h3 class="font-extrabold text-[14px] mb-3">Distribusi Status & Prioritas</h3>
+            <div id="dashBars" class="flex flex-col gap-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TICKETS -->
+      <section id="page-tickets" class="page">
+        <div class="bg-white border border-slate-100 rounded-2xl shadow-card overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-2 bg-slate-50/60">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">Filter cepat:</span>
+            <div id="quickStatus" class="flex flex-wrap gap-1.5"></div>
+            <div class="flex-1"></div>
+            <select id="filterPriority" onchange="onPrioritySelect(this.value)" class="text-[12px] font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand"><option value="all">Semua Prioritas</option><option>Rendah</option><option>Sedang</option><option>Tinggi</option><option>Mendesak</option></select>
+            <select id="filterCategory" onchange="onCategorySelect(this.value)" class="text-[12px] font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand"><option value="all">Semua Kategori</option><option>Hardware</option><option>Software & OS</option><option>Jaringan</option><option>Akun & Login</option><option>Lainnya</option></select>
+            <button onclick="resetFilters()" class="text-[12px] font-bold text-slate-400 hover:text-navy px-2">Reset</button>
+          </div>
+          <table class="w-full text-left">
+            <thead class="bg-slate-50/80 border-b border-slate-100"><tr><th class="py-3 px-4 w-10 text-center"><input type="checkbox" class="custom-checkbox" disabled></th><th class="py-3 px-2 text-[11px] font-bold text-slate-400 uppercase w-[84px]">ID</th><th class="py-3 px-2 text-[11px] font-bold text-slate-400 uppercase">Judul & Prioritas</th><th class="py-3 px-2 text-[11px] font-bold text-slate-400 uppercase w-[130px] hidden lg:table-cell">Kategori</th><th class="py-3 px-2 text-[11px] font-bold text-slate-400 uppercase w-[118px]">Status</th><th class="py-3 px-4 w-8"></th></tr></thead>
+            <tbody id="ticketTableBody" class="divide-y divide-slate-50"></tbody>
+          </table>
+          <div id="emptyState" class="hidden flex-col items-center justify-center py-14 text-slate-400">
+            <div class="w-14 h-14 rounded-2xl bg-mist flex items-center justify-center mb-3"><i class="ph ph-ticket text-3xl"></i></div>
+            <p class="font-bold text-navy">Tidak ada tiket ditemukan</p><p class="text-xs">Ubah filter atau buat laporan baru.</p>
+          </div>
+          <div class="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-white"><p id="tableInfo" class="text-[12px] text-slate-400 font-medium">0 tiket</p><div class="flex gap-1"><button class="px-3 py-1.5 text-[12px] font-bold text-slate-400 hover:bg-mist rounded-lg">‹ Prev</button><button class="w-8 h-8 rounded-lg bg-brand text-white text-[12px] font-bold">1</button><button class="px-3 py-1.5 text-[12px] font-bold text-slate-500 hover:bg-mist rounded-lg">Next ›</button></div></div>
+        </div>
+      </section>
+
+      <!-- STATS -->
+      <section id="page-stats" class="page">
+        <div class="grid lg:grid-cols-3 gap-3">
+          <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-card"><h3 class="font-extrabold mb-4">Berdasarkan Status</h3><div id="statStatus" class="flex flex-col gap-3"></div></div>
+          <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-card"><h3 class="font-extrabold mb-4">Berdasarkan Prioritas</h3><div id="statPriority" class="flex flex-col gap-3"></div></div>
+          <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-card"><h3 class="font-extrabold mb-4">Berdasarkan Kategori</h3><div id="statCategory" class="flex flex-col gap-3"></div>
+            <div class="mt-5 pt-4 border-t border-slate-100"><h4 class="font-bold text-[13px] mb-2">Beban Petugas</h4><div id="statAssignee" class="flex flex-col gap-2"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="page-settings" class="page">
+        <div class="grid lg:grid-cols-2 gap-3 max-w-[900px]">
+          <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-card">
+            <h3 class="font-extrabold mb-1">Profil Admin</h3><p class="text-[12px] text-slate-400 mb-4">Nama ini dipakai untuk riwayat penanganan.</p>
+            <label class="text-[12px] font-bold">Nama Admin</label>
+            <input id="settingAdminName" class="mt-1.5 w-full px-3 py-2.5 bg-mist border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-brand" placeholder="Admin Pusat">
+            <button onclick="saveSettings()" class="mt-3 px-4 py-2.5 bg-navy text-white rounded-xl text-[12px] font-bold hover:bg-slate-800 transition">Simpan Pengaturan</button>
+          </div>
+          <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-card">
+            <h3 class="font-extrabold mb-1">Data & Penyimpanan</h3><p class="text-[12px] text-slate-400 mb-4">localStorage • key: <code class="bg-mist px-1.5 py-0.5 rounded">helpdesk_tickets_v1</code></p>
+            <p id="storageInfo" class="text-[12px] font-semibold text-slate-500 mb-3">0 tiket tersimpan</p>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="exportData()" class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[12px] font-bold hover:bg-mist">Export JSON</button>
+              <label class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[12px] font-bold hover:bg-mist cursor-pointer">Import JSON<input type="file" accept=".json" class="hidden" onchange="importData(event)"></label>
+              <button onclick="resetSeed()" class="px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[12px] font-bold hover:bg-amber-100">Reset Contoh</button>
+              <button onclick="wipeAll()" class="px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded-xl text-[12px] font-bold hover:bg-red-100">Hapus Semua</button>
+            </div>
+            <div class="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-100 text-[12px] text-slate-600 leading-relaxed">Saran portofolio: migrasi ke <b>Laravel + MySQL</b> agar data tersimpan di database, bisa multi-admin, dan ada API. Struktur tabel: <code>tickets(id, judul, pelapor, kategori, prioritas, status, petugas, deskripsi, solusi)</code> + <code>histories(ticket_id, aksi, user, waktu)</code>.</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- DETAILS -->
+  <aside id="detailsPanel" class="w-[360px] flex-shrink-0 bg-white border-l border-slate-100 hidden lg:flex flex-col collapsed">
+    <div class="h-[64px] px-5 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+      <div class="flex items-center gap-2"><span id="detailId" class="font-extrabold">HD-0000</span><span id="detailStatusBadge" class="pill bg-mist text-slate-500">Status</span></div>
+      <div class="flex gap-1.5"><button class="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-navy"><i class="ph ph-dots-three text-xl"></i></button><button onclick="closeDetails()" class="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-navy"><i class="ph ph-x"></i></button></div>
+    </div>
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-5 bg-[#FBFCFE]">
+      <div><p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Dilaporkan oleh</p>
+        <div class="flex items-center gap-3 bg-white border border-slate-100 rounded-2xl p-3 shadow-card"><img id="detailAvatar" src="" class="w-10 h-10 rounded-full" alt=""><div class="flex-1 min-w-0"><p id="detailReporter" class="text-[13px] font-bold truncate">-</p><p id="detailDate" class="text-[11px] text-slate-400">-</p></div><span class="w-9 h-9 rounded-xl bg-brand text-white flex items-center justify-center"><i class="ph-fill ph-chat-teardrop-text"></i></span></div>
+      </div>
+      <div><div class="flex items-center gap-1.5 mb-1.5"><i class="ph-fill ph-sparkle text-brand"></i><p class="text-[12px] font-bold">Ringkasan Masalah</p></div>
+        <div class="bg-blue-50/60 border border-blue-100 rounded-2xl p-4"><h4 id="detailTitle" class="font-extrabold text-[15px] leading-snug mb-1">-</h4><p id="detailDescription" class="text-[12.5px] text-slate-500 leading-relaxed">-</p>
+        <div class="mt-3 flex flex-wrap gap-1.5"><span id="detailCategory" class="text-[11px] font-bold bg-white border px-2.5 py-1 rounded-lg">-</span><span id="detailPriority" class="pill bg-white border border-slate-200">-</span><span id="detailAssignee" class="text-[11px] font-bold bg-navy text-white px-2.5 py-1 rounded-lg">-</span></div></div>
+      </div>
+      <div class="bg-[#F3F5F9] rounded-2xl p-4 border border-slate-100">
+        <h3 class="text-[13px] font-extrabold">Tindakan Penanganan</h3><p class="text-[11px] text-slate-400 mb-3">Ubah status & simpan riwayat</p>
+        <form id="actionForm" onsubmit="handleUpdateTicket(event)" class="flex flex-col gap-2.5">
+          <input type="hidden" id="editTicketId">
+          <div><label class="text-[11px] font-bold uppercase text-slate-500">Status</label><select id="editStatus" class="mt-1 w-full p-2.5 bg-white border border-slate-200 rounded-xl text-[13px] font-medium outline-none focus:border-brand"><option>Baru</option><option>Diproses</option><option>Menunggu</option><option>Selesai</option><option>Ditutup</option></select></div>
+          <div><label class="text-[11px] font-bold uppercase text-slate-500">Solusi / Catatan admin</label><textarea id="editSolution" rows="3" class="mt-1 w-full p-2.5 bg-white border border-slate-200 rounded-xl text-[13px] outline-none focus:border-brand resize-none" placeholder="Tulis solusi..."></textarea></div>
+          <button class="py-2.5 bg-brand text-white rounded-xl text-[12px] font-bold hover:bg-blue-700 active:scale-[.98] transition">Update & Simpan Riwayat</button>
+        </form>
+      </div>
+      <div><h3 class="text-[13px] font-extrabold mb-2">Riwayat Penanganan</h3><div id="timelineContainer"></div></div>
+    </div>
+    <div class="p-4 border-t border-slate-100 flex gap-2 bg-white"><button onclick="confirmDelete()" class="px-4 py-2.5 border border-red-200 text-red-600 rounded-xl text-[12px] font-bold hover:bg-red-50">Hapus</button><button onclick="document.getElementById('actionForm').requestSubmit()" class="flex-1 py-2.5 bg-brand text-white rounded-xl text-[12px] font-bold hover:bg-blue-700">Update Ticket</button></div>
+  </aside>
+</div>
+
+<!-- MOBILE DETAILS DRAWER -->
+<div id="mobileDrawer" class="fixed inset-0 z-40 hidden lg:hidden"><div class="absolute inset-0 bg-navy/40" onclick="closeDetails()"></div><div class="absolute right-0 top-0 bottom-0 w-full max-w-[380px] bg-white shadow-pop flex flex-col"><div class="p-4 border-b flex items-center justify-between"><span class="font-extrabold" id="mDetailId">HD-0000</span><button onclick="closeDetails()" class="w-8 h-8 rounded-lg bg-mist flex items-center justify-center"><i class="ph ph-x"></i></button></div><div id="mobileBody" class="flex-1 overflow-y-auto p-4"></div><div class="p-4 border-t flex gap-2"><button onclick="confirmDelete()" class="px-4 py-2.5 border border-red-200 text-red-600 rounded-xl text-[12px] font-bold">Hapus</button><button onclick="document.getElementById('actionForm').requestSubmit()" class="flex-1 py-2.5 bg-brand text-white rounded-xl text-[12px] font-bold">Update</button></div></div></div>
+
+<!-- CREATE -->
+<div id="createModal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay p-4">
+  <div class="absolute inset-0 bg-navy/40 backdrop-blur-sm" onclick="closeCreateModal()"></div>
+  <div class="bg-white rounded-[20px] shadow-pop w-full max-w-lg z-10 max-h-[90vh] flex flex-col modal-panel overflow-hidden">
+    <div class="px-6 py-5 border-b bg-gradient-to-r from-blue-50 to-white flex items-center justify-between"><div><h2 class="font-extrabold flex items-center gap-2"><span class="w-8 h-8 rounded-[10px] bg-brand text-white flex items-center justify-center"><i class="ph-bold ph-plus"></i></span>Buat Laporan Baru</h2><p class="text-[12px] text-slate-400 ml-10">ID otomatis • contoh HD-0001</p></div><button onclick="closeCreateModal()" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400"><i class="ph ph-x"></i></button></div>
+    <div class="p-6 overflow-y-auto custom-scrollbar">
+      <form id="createForm" onsubmit="handleCreateTicket(event)" class="flex flex-col gap-4">
+        <div><label class="font-bold text-[13px]">Judul laporan <span class="text-red-500">*</span></label><input id="createTitle" required placeholder="Contoh: Komputer tidak menyala" class="mt-1.5 w-full px-3.5 py-2.5 bg-mist border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-brand"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="font-bold text-[13px]">Nama pelapor <span class="text-red-500">*</span></label><input id="createReporter" required placeholder="Contoh: Andi" class="mt-1.5 w-full px-3.5 py-2.5 bg-mist border rounded-xl text-sm outline-none focus:bg-white focus:border-brand"></div>
+          <div><label class="font-bold text-[13px]">Kategori <span class="text-red-500">*</span></label><select id="createCategory" required class="mt-1.5 w-full px-3.5 py-2.5 bg-mist border rounded-xl text-sm outline-none focus:border-brand"><option value="" disabled selected>Pilih...</option><option>Hardware</option><option>Software & OS</option><option>Jaringan</option><option>Akun & Login</option><option>Lainnya</option></select></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="font-bold text-[13px]">Prioritas <span class="text-red-500">*</span></label><select id="createPriority" required class="mt-1.5 w-full px-3.5 py-2.5 bg-mist border rounded-xl text-sm outline-none focus:border-brand"><option>Rendah</option><option selected>Sedang</option><option>Tinggi</option><option>Mendesak</option></select></div>
+          <div><label class="font-bold text-[13px]">Petugas</label><select id="createAssignee" class="mt-1.5 w-full px-3.5 py-2.5 bg-mist border rounded-xl text-sm outline-none focus:border-brand"><option>Belum Ada</option><option>Admin 01</option><option>Admin 02</option><option>Teknisi IT</option></select></div>
+        </div>
+        <div><label class="font-bold text-[13px]">Deskripsi <span class="text-red-500">*</span></label><textarea id="createDescription" required rows="3" placeholder="Contoh: Komputer tidak bisa dinyalakan" class="mt-1.5 w-full px-3.5 py-2.5 bg-mist border rounded-xl text-sm outline-none focus:bg-white focus:border-brand resize-none"></textarea></div>
+        <div class="flex justify-end gap-2 pt-3 border-t"><button type="button" onclick="closeCreateModal()" class="px-5 py-2.5 border rounded-xl font-bold text-slate-500">Batal</button><button class="px-5 py-2.5 bg-brand text-white rounded-xl font-bold flex items-center gap-2">Simpan <i class="ph-bold ph-paper-plane-right"></i></button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="deleteModal" class="fixed inset-0 z-[60] flex items-center justify-center modal-overlay p-4"><div class="absolute inset-0 bg-navy/40" onclick="closeDeleteModal()"></div><div class="bg-white rounded-2xl shadow-pop w-full max-w-sm p-6 modal-panel text-center"><div class="w-14 h-14 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-3"><i class="ph-fill ph-trash text-2xl"></i></div><h3 class="font-extrabold">Hapus tiket?</h3><p class="text-[13px] text-slate-500 my-2">Riwayat penanganan ikut terhapus permanen.</p><div class="flex gap-2 mt-4"><button onclick="closeDeleteModal()" class="flex-1 py-2.5 border rounded-xl font-bold">Batal</button><button onclick="executeDelete()" class="flex-1 py-2.5 bg-red-500 text-white rounded-xl font-bold">Ya, Hapus</button></div></div></div>
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-24 opacity-0 transition-all duration-300 z-[100] bg-navy text-white px-5 py-3 rounded-2xl shadow-pop flex items-center gap-2.5"><i class="ph-fill ph-check-circle text-emerald-400 text-xl"></i><span id="toastMessage" class="text-[13px] font-semibold">OK</span></div>
+
+<script>
+const KEY='helpdesk_tickets_v1', ADMIN_KEY='helpdesk_admin';
+let tickets=[], currentPage='dashboard', currentFilters={status:'all',priority:'all',category:'all',search:''}, selectedTicketId=null, ticketToDelete=null;
+const statusConfig={'Baru':{pill:'background:#E8FDF3;color:#0E9F6E',dot:'#0E9F6E'},'Diproses':{pill:'background:#FEF6E7;color:#C27803',dot:'#E3A008'},'Menunggu':{pill:'background:#F3E8FF;color:#7E3AF2',dot:'#7E3AF2'},'Selesai':{pill:'background:#E1EFFE;color:#1C64F2',dot:'#1C64F2'},'Ditutup':{pill:'background:#F1F5F9;color:#64748B',dot:'#64748B'}};
+const priorityConfig={'Mendesak':{dot:'#E02424',cls:'text-red-500'},'Tinggi':{dot:'#FF5A1F',cls:'text-orange-500'},'Sedang':{dot:'#E3A008',cls:'text-yellow-500'},'Rendah':{dot:'#0E9F6E',cls:'text-emerald-500'}};
+const seed=[
+ {id:'HD-0001',title:'Komputer tidak menyala',reporter:'Andi',category:'Hardware',priority:'Tinggi',status:'Diproses',createdAt:new Date('2026-10-09T08:00:00').toISOString(),assignee:'Admin 01',description:'Komputer tidak bisa dinyalakan padahal kabel power terpasang.',solution:'',history:[{date:new Date('2026-10-09T08:00:00').toISOString(),action:'Tiket dibuat',user:'Andi'},{date:new Date().toISOString(),action:'Status diubah ke Diproses',user:'Admin 01'}]},
+ {id:'HD-0002',title:'Aplikasi crash saat checkout',reporter:'Budi Santoso',category:'Software & OS',priority:'Tinggi',status:'Selesai',createdAt:new Date(Date.now()-86400000*2).toISOString(),assignee:'Teknisi IT',description:'Force close saat bayar via transfer bank.',solution:'Fix API gateway v1.2.4.',history:[{date:new Date(Date.now()-86400000*2).toISOString(),action:'Tiket dibuat',user:'Budi Santoso'},{date:new Date().toISOString(),action:'Tiket Selesai: Bug fixed',user:'Teknisi IT'}]},
+ {id:'HD-0003',title:'Lupa password email kantor',reporter:'Joko Anwar',category:'Akun & Login',priority:'Sedang',status:'Baru',createdAt:new Date().toISOString(),assignee:'Belum Ada',description:'Tidak bisa login email @perusahaan.com, mohon reset.',solution:'',history:[{date:new Date().toISOString(),action:'Tiket dibuat',user:'Joko Anwar'}]},
+ {id:'HD-0004',title:'WiFi lantai 2 lambat',reporter:'Siti Aminah',category:'Jaringan',priority:'Mendesak',status:'Menunggu',createdAt:new Date(Date.now()-7200000).toISOString(),assignee:'Admin 02',description:'Kecepatan <1 Mbps sejak pagi, ganggu kasir.',solution:'',history:[{date:new Date(Date.now()-7200000).toISOString(),action:'Tiket dibuat',user:'Siti Aminah'}]},
+];
+function adminName(){return localStorage.getItem(ADMIN_KEY)||'Admin Pusat'}
+function init(){loadData();document.getElementById('settingAdminName').value=adminName();document.getElementById('adminNameLabel').textContent=adminName();document.getElementById('adminAvatar').src=`https://ui-avatars.com/api/?name=${encodeURIComponent(adminName())}&background=172554&color=fff`;setupSearch();renderAll();showPage('dashboard')}
+function loadData(){try{const s=localStorage.getItem(KEY);if(s){tickets=JSON.parse(s);return}}catch(e){}tickets=[...seed];saveData()}
+function saveData(){localStorage.setItem(KEY,JSON.stringify(tickets))}
+function setupSearch(){document.getElementById('searchInput').addEventListener('input',e=>{currentFilters.search=e.target.value;if(currentPage==='dashboard'||currentPage==='all'||currentPage==='processing'||currentPage==='done')renderTickets();});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeCreateModal();closeDeleteModal();closeDetails()}})}
+function generateId(){if(!tickets.length)return'HD-0001';const m=Math.max(...tickets.map(t=>parseInt(t.id.split('-')[1])||0));return'HD-'+String(m+1).padStart(4,'0')}
+function fmt(iso){return new Date(iso).toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).replace(',','')}
+function toast(m){document.getElementById('toastMessage').textContent=m;const t=document.getElementById('toast');t.classList.remove('translate-y-24','opacity-0');setTimeout(()=>t.classList.add('translate-y-24','opacity-0'),2600)}
+function pill(s){const c=statusConfig[s];return`<span class="pill" style="${c.pill}"><i class="dot" style="background:${c.dot}"></i>${s}</span>`}
+
+function showPage(p){
+ currentPage=p;
+ document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+ document.querySelectorAll('.nav-main').forEach(el=>el.classList.toggle('active',el.dataset.nav===p||(p==='all'&&el.dataset.nav==='all')));
+ const map={dashboard:['page-dashboard','Dashboard'],all:['page-tickets','Semua Tiket'],processing:['page-tickets','Dalam Proses'],done:['page-tickets','Tiket Selesai'],stats:['page-stats','Statistik'],settings:['page-settings','Pengaturan']};
+ document.getElementById(map[p][0]).classList.add('active');
+ document.getElementById('mainTitle').textContent=map[p][1];
+ if(p==='all')currentFilters.status='all'; if(p==='processing')currentFilters.status='__processing'; if(p==='done')currentFilters.status='__done';
+ renderAll();
+}
+function getFiltered(){
+ return tickets.filter(t=>{
+  let ms=true;
+  if(currentFilters.status==='__processing')ms=['Baru','Diproses','Menunggu'].includes(t.status);
+  else if(currentFilters.status==='__done')ms=['Selesai','Ditutup'].includes(t.status);
+  else if(currentFilters.status!=='all')ms=t.status===currentFilters.status;
+  const mp=currentFilters.priority==='all'||t.priority===currentFilters.priority;
+  const mc=currentFilters.category==='all'||t.category===currentFilters.category;
+  const s=currentFilters.search.toLowerCase();
+  const mss=!s||t.id.toLowerCase().includes(s)||t.title.toLowerCase().includes(s)||t.reporter.toLowerCase().includes(s)||t.category.toLowerCase().includes(s)||t.status.toLowerCase().includes(s)||t.priority.toLowerCase().includes(s);
+  return ms&&mp&&mc&&mss;
+ }).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+}
+function renderAll(){renderCounts();renderSideFilters();renderQuick();renderTickets();renderDashboard();renderStats();document.getElementById('storageInfo').textContent=`${tickets.length} tiket tersimpan • ${(JSON.stringify(tickets).length/1024).toFixed(1)} KB`}
+function renderCounts(){
+ const proc=tickets.filter(t=>['Baru','Diproses','Menunggu'].includes(t.status)).length;
+ const done=tickets.filter(t=>['Selesai','Ditutup'].includes(t.status)).length;
+ document.getElementById('countAll').textContent=tickets.length;
+ document.getElementById('countProcessing').textContent=proc;
+ document.getElementById('countDone').textContent=done;
+ document.getElementById('mainSubtitle').textContent=`${getFiltered().length} Laporan`;
+}
+function renderSideFilters(){
+ const sc={};Object.keys(statusConfig).forEach(k=>sc[k]=0);tickets.forEach(t=>sc[t.status]++);
+ document.getElementById('navStatusList').innerHTML=Object.keys(statusConfig).map(s=>`<li><button onclick="setStatus('${s}')" class="w-full flex items-center justify-between px-3 py-[7px] rounded-[10px] text-[13px] ${currentFilters.status===s?'bg-blue-50 text-brand font-bold':'text-slate-600 hover:bg-mist font-medium'}"><span class="flex items-center gap-2"><i class="dot" style="width:8px;height:8px;border-radius:99px;display:inline-block;background:${statusConfig[s].dot}"></i>${s}</span><span class="text-[10px] font-bold bg-mist px-2 py-0.5 rounded-full">${sc[s]||0}</span></button></li>`).join('');
+ const pc={};Object.keys(priorityConfig).forEach(k=>pc[k]=0);tickets.forEach(t=>pc[t.priority]++);
+ document.getElementById('navPriorityList').innerHTML=Object.keys(priorityConfig).map(p=>`<li><button onclick="setPriority('${p}')" class="w-full flex items-center justify-between px-3 py-[7px] rounded-[10px] text-[13px] ${currentFilters.priority===p?'bg-mist font-bold text-navy':'text-slate-600 hover:bg-mist font-medium'}"><span class="flex items-center gap-2"><i class="ph-fill ph-flag ${priorityConfig[p].cls}"></i>${p}</span><span class="text-[11px] text-slate-400">${pc[p]||0}</span></button></li>`).join('');
+ const cc={};tickets.forEach(t=>cc[t.category]=(cc[t.category]||0)+1);
+ document.getElementById('navCategoryList').innerHTML=Object.keys(cc).map(c=>`<li><button onclick="setCategory('${c}')" class="w-full flex items-center justify-between px-3 py-[7px] rounded-[10px] text-[13px] ${currentFilters.category===c?'bg-navy text-white font-bold':'text-slate-600 hover:bg-mist font-medium'}"><span class="truncate">${c}</span><span class="text-[11px] opacity-60">${cc[c]}</span></button></li>`).join('');
+}
+function renderQuick(){
+ const opts=['all','Baru','Diproses','Menunggu','Selesai','Ditutup'];
+ document.getElementById('quickStatus').innerHTML=opts.map(o=>`<button onclick="setStatus('${o}')" class="px-3 py-1.5 rounded-lg text-[12px] font-bold transition ${currentFilters.status===o?'bg-navy text-white':'bg-mist text-slate-500 hover:bg-slate-200'}">${o==='all'?'Semua':o}</button>`).join('');
+ document.getElementById('filterPriority').value=currentFilters.priority;
+ document.getElementById('filterCategory').value=currentFilters.category;
+}
+function renderTickets(){
+ const list=getFiltered();
+ document.getElementById('tableInfo').textContent=`${list.length} tiket ditampilkan`;
+ document.getElementById('mainSubtitle').textContent=`${list.length} Laporan`;
+ const tb=document.getElementById('ticketTableBody'), empty=document.getElementById('emptyState');
+ if(!list.length){tb.innerHTML='';empty.classList.remove('hidden');empty.classList.add('flex');return}
+ empty.classList.add('hidden');empty.classList.remove('flex');
+ tb.innerHTML=list.map(t=>{const pr=priorityConfig[t.priority];const sel=selectedTicketId===t.id;return`<tr onclick="openDetails('${t.id}')" class="hover:bg-blue-50/40 cursor-pointer group ${sel?'row-selected':''}"><td class="py-3 px-4 text-center" onclick="event.stopPropagation()"><input type="checkbox" class="custom-checkbox"></td><td class="py-3 px-2"><span class="text-[12px] font-bold text-slate-400">${t.id}</span><p class="text-[10px] text-slate-400">${fmt(t.createdAt).slice(0,10)}</p></td><td class="py-3 px-2 min-w-0"><div class="flex items-center gap-2"><span class="w-1.5 h-8 rounded-full flex-shrink-0" style="background:${pr.dot}"></span><div class="min-w-0"><p class="text-[13px] font-bold truncate group-hover:text-brand">${t.title}</p><p class="text-[11px] text-slate-400 truncate">${t.reporter} • ${t.priority} • ${t.assignee}</p></div></div></td><td class="py-3 px-2 hidden lg:table-cell"><span class="text-[11px] font-semibold bg-mist px-2.5 py-1 rounded-lg">${t.category}</span></td><td class="py-3 px-2">${pill(t.status)}</td><td class="py-3 px-4 text-right"><i class="ph ph-caret-right text-slate-300 group-hover:text-brand"></i></td></tr>`}).join('');
+}
+function renderDashboard(){
+ document.getElementById('dTotal').textContent=tickets.length;
+ document.getElementById('dBaru').textContent=tickets.filter(t=>t.status==='Baru').length;
+ document.getElementById('dProses').textContent=tickets.filter(t=>['Diproses','Menunggu'].includes(t.status)).length;
+ document.getElementById('dSelesai').textContent=tickets.filter(t=>['Selesai','Ditutup'].includes(t.status)).length;
+ document.getElementById('dTinggi').textContent=tickets.filter(t=>['Tinggi','Mendesak'].includes(t.priority)).length;
+ const rec=[...tickets].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
+ document.getElementById('recentList').innerHTML=rec.map(t=>`<button onclick="openDetails('${t.id}')" class="flex items-center gap-3 p-2.5 rounded-xl hover:bg-mist text-left transition border border-transparent hover:border-slate-200"><img src="https://ui-avatars.com/api/?name=${encodeURIComponent(t.reporter)}&background=random" class="w-9 h-9 rounded-full flex-shrink-0"><div class="flex-1 min-w-0"><p class="text-[13px] font-bold truncate">${t.title}</p><p class="text-[11px] text-slate-400">${t.id} • ${t.reporter}</p></div>${pill(t.status)}</button>`).join('')||'<p class="text-slate-400 text-sm">Belum ada tiket.</p>';
+ const tot=tickets.length||1;
+ const rows=[...Object.keys(statusConfig).map(s=>({label:s,n:tickets.filter(t=>t.status===s).length,color:statusConfig[s].dot})),...Object.keys(priorityConfig).map(p=>({label:p,n:tickets.filter(t=>t.priority===p).length,color:priorityConfig[p].dot}))];
+ document.getElementById('dashBars').innerHTML=rows.map(r=>`<div><div class="flex justify-between text-[12px] font-bold mb-1"><span>${r.label}</span><span class="text-slate-400">${r.n}</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(r.n/tot*100)}%;background:${r.color}"></div></div></div>`).join('');
+}
+function renderStats(){
+ const tot=tickets.length||1;
+ const mk=(obj,fn)=>Object.keys(obj).map(k=>{const n=tickets.filter(fn(k)).length;return`<div><div class="flex justify-between text-[12px] font-bold mb-1"><span>${k}</span><span>${n} (${Math.round(n/tot*100)}%)</span></div><div class="bar-track"><div class="bar-fill" style="width:${n/tot*100}%;background:${obj[k].dot||'#2563EB'}"></div></div></div>`}).join('');
+ document.getElementById('statStatus').innerHTML=mk(statusConfig,s=>t=>t.status===s);
+ document.getElementById('statPriority').innerHTML=mk(priorityConfig,p=>t=>t.priority===p);
+ const cats={};tickets.forEach(t=>cats[t.category]=(cats[t.category]||0)+1);
+ document.getElementById('statCategory').innerHTML=Object.keys(cats).map(c=>`<div><div class="flex justify-between text-[12px] font-bold mb-1"><span>${c}</span><span>${cats[c]}</span></div><div class="bar-track"><div class="bar-fill" style="width:${cats[c]/tot*100}%;background:#172554"></div></div></div>`).join('')||'-';
+ const asg={};tickets.forEach(t=>asg[t.assignee]=(asg[t.assignee]||0)+1);
+ document.getElementById('statAssignee').innerHTML=Object.keys(asg).map(a=>`<div class="flex items-center justify-between text-[12px] font-semibold bg-mist rounded-lg px-3 py-2"><span>${a}</span><span class="font-bold">${asg[a]}</span></div>`).join('');
+}
+function setStatus(v){currentFilters.status=v;if(currentPage==='dashboard')showPage('all');else renderAll()}
+function setPriority(v){currentFilters.priority=currentFilters.priority===v?'all':v;renderAll()}
+function setCategory(v){currentFilters.category=currentFilters.category===v?'all':v;renderAll()}
+function onPrioritySelect(v){currentFilters.priority=v;renderAll()}
+function onCategorySelect(v){currentFilters.category=v;renderAll()}
+function resetFilters(){currentFilters={status:'all',priority:'all',category:'all',search:''};document.getElementById('searchInput').value='';if(['processing','done'].includes(currentPage))showPage('all');else renderAll()}
+
+function openDetails(id){
+ selectedTicketId=id;const t=tickets.find(x=>x.id===id);if(!t)return;renderTickets();
+ document.getElementById('detailId').textContent=t.id;
+ document.getElementById('detailStatusBadge').outerHTML=`<span id="detailStatusBadge" class="pill" style="${statusConfig[t.status].pill}"><i class="dot" style="background:${statusConfig[t.status].dot}"></i>${t.status}</span>`;
+ document.getElementById('detailAvatar').src=`https://ui-avatars.com/api/?name=${encodeURIComponent(t.reporter)}&background=random`;
+ document.getElementById('detailReporter').textContent=`${t.reporter} • ${fmt(t.createdAt)}`;
+ document.getElementById('detailTitle').textContent=t.title;
+ document.getElementById('detailDescription').textContent=t.description;
+ document.getElementById('detailCategory').textContent=t.category;
+ document.getElementById('detailPriority').outerHTML=`<span id="detailPriority" class="pill" style="background:#F1F5F9;color:#475569"><i class="dot" style="background:${priorityConfig[t.priority].dot}"></i>${t.priority}</span>`;
+ document.getElementById('detailAssignee').textContent='👤 '+t.assignee;
+ document.getElementById('editTicketId').value=t.id;document.getElementById('editStatus').value=t.status;document.getElementById('editSolution').value=t.solution||'';
+ document.getElementById('timelineContainer').innerHTML=[...t.history].reverse().map(h=>`<div class="relative pl-11 py-2 timeline-item"><div class="timeline-line"></div><div class="absolute left-0 top-2 w-[28px] h-[28px] rounded-full bg-mist border-2 border-white shadow flex items-center justify-center"><i class="ph-fill ph-clock text-slate-500 text-[14px]"></i></div><div class="bg-white border border-slate-100 rounded-xl p-3 shadow-card"><p class="text-[12.5px] font-bold">${h.action}</p><p class="text-[11px] text-slate-400">${h.user} • ${fmt(h.date)}</p></div></div>`).join('');
+ document.getElementById('detailsPanel').classList.remove('collapsed');
+ if(window.innerWidth<1024){document.getElementById('mDetailId').textContent=t.id;document.getElementById('mobileBody').innerHTML=document.querySelector('#detailsPanel .flex-1').innerHTML;document.getElementById('mobileDrawer').classList.remove('hidden')}
+}
+function closeDetails(){selectedTicketId=null;document.getElementById('detailsPanel').classList.add('collapsed');document.getElementById('mobileDrawer').classList.add('hidden');renderTickets()}
+function openCreateModal(){document.getElementById('createForm').reset();document.getElementById('createModal').classList.add('active')}
+function closeCreateModal(){document.getElementById('createModal').classList.remove('active')}
+function handleCreateTicket(e){e.preventDefault();const rep=document.getElementById('createReporter').value;const nt={id:generateId(),title:document.getElementById('createTitle').value,reporter:rep,category:document.getElementById('createCategory').value,priority:document.getElementById('createPriority').value,assignee:document.getElementById('createAssignee').value,description:document.getElementById('createDescription').value,status:'Baru',solution:'',createdAt:new Date().toISOString(),history:[{date:new Date().toISOString(),action:'Tiket dibuat',user:rep}]};if(nt.assignee!=='Belum Ada')nt.history.push({date:new Date().toISOString(),action:`Diberikan ke ${nt.assignee}`,user:adminName()});tickets.push(nt);saveData();closeCreateModal();renderAll();toast(`Tiket ${nt.id} berhasil dibuat`);openDetails(nt.id)}
+function handleUpdateTicket(e){e.preventDefault();const id=document.getElementById('editTicketId').value,ns=document.getElementById('editStatus').value,sol=document.getElementById('editSolution').value;const i=tickets.findIndex(t=>t.id===id);if(i<0)return;let log='';if(tickets[i].status!==ns){log=`Status diubah ke ${ns}`;tickets[i].status=ns}if(sol!==tickets[i].solution){log=log?log+' & Solusi diperbarui':'Solusi / catatan ditambahkan';tickets[i].solution=sol}if(log){tickets[i].history.push({date:new Date().toISOString(),action:log,user:adminName()});saveData();renderAll();openDetails(id);toast(`Tiket ${id} diperbarui`)}}
+function confirmDelete(){if(!selectedTicketId)return;ticketToDelete=selectedTicketId;document.getElementById('deleteModal').classList.add('active')}
+function closeDeleteModal(){document.getElementById('deleteModal').classList.remove('active');ticketToDelete=null}
+function executeDelete(){tickets=tickets.filter(t=>t.id!==ticketToDelete);saveData();closeDeleteModal();closeDetails();renderAll();toast('Tiket dihapus')}
+function saveSettings(){const v=document.getElementById('settingAdminName').value.trim()||'Admin Pusat';localStorage.setItem(ADMIN_KEY,v);document.getElementById('adminNameLabel').textContent=v;toast('Pengaturan disimpan')}
+function exportData(){const b=new Blob([JSON.stringify(tickets,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='helpdesk-tickets.json';a.click()}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{tickets=JSON.parse(r.result);saveData();renderAll();toast('Import berhasil')}catch(err){toast('File tidak valid')}};r.readAsText(f)}
+function resetSeed(){tickets=[...seed];saveData();renderAll();toast('Data contoh dimuat ulang')}
+function wipeAll(){if(!confirm('Hapus semua tiket?'))return;tickets=[];saveData();closeDetails();renderAll()}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
